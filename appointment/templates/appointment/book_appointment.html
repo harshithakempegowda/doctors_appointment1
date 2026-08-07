@@ -1,0 +1,39 @@
+{% extends "appointment/base.html" %}
+{% block title %}Book with Dr. {{ doctor.name }}{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card card-soft p-4">
+                <h4 class="mb-1">Book with Dr. {{ doctor.name }}</h4>
+                <p class="text-muted small mb-4">{{ doctor.get_specialization_display }} &middot; ₹{{ doctor.consultation_fee }} consultation fee</p>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        {{ form.date }}
+                        {{ form.date.errors }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Time</label>
+                        {{ form.time }}
+                        {{ form.time.errors }}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Reason for visit</label>
+                        {{ form.reason }}
+                        {{ form.reason.errors }}
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100">Confirm Booking Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

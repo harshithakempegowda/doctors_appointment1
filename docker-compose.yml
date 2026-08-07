@@ -1,0 +1,21 @@
+services:
+  web:
+    build: .
+    container_name: medicare_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SECRET_KEY: "change-this-in-production-please"
+      DJANGO_DEBUG: "False"
+      DJANGO_DB_PATH: "/app/data/db.sqlite3"
+      SEED_DEMO: "False"
+    volumes:
+      - sqlite_data:/app/data
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+
+volumes:
+  sqlite_data:
+  media_data:
+  static_data:

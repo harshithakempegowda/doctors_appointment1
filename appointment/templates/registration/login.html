@@ -1,0 +1,32 @@
+{% extends "appointment/base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card card-soft p-4">
+                <h4 class="mb-4">Welcome Back</h4>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <button type="submit" class="btn btn-brand w-100">Login</button>
+                </form>
+                <p class="text-center mt-3 small">New here? <a href="{% url 'signup_choice' %}">Create an account</a></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "appointment/base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-7">
+                <span class="stat-pill mb-3"><i class="bi bi-shield-check"></i> Trusted by patients across the city</span>
+                <h1 class="display-5 mt-3 mb-3">Book the right doctor, right on time.</h1>
+                <p class="lead opacity-90">Search verified doctors by specialization, check real patient reviews, and book an appointment in under a minute.</p>
+                <div class="d-flex gap-3 mt-4">
+                    <div class="stat-pill">{{ top_doctors|length }}+ Specialists</div>
+                    <div class="stat-pill"><i class="bi bi-clock"></i> Instant Booking</div>
+                    <div class="stat-pill"><i class="bi bi-star-fill"></i> Verified Reviews</div>
+                </div>
+            </div>
+            <div class="col-lg-5 mt-5 mt-lg-0">
+                <form class="hero-search" action="{% url 'doctor_list' %}" method="get">
+                    <label class="form-label fw-semibold">Find a doctor</label>
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" placeholder="Doctor name or condition...">
+                        <button class="btn btn-brand" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{% url 'doctor_list' %}" class="small">Or browse all specializations →</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container py-5">
+    <h2 class="section-title">Popular Doctors</h2>
+    <div class="row g-4">
+        {% for doctor in top_doctors %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card doctor-card p-4">
+                <div class="d-flex gap-3 align-items-center mb-3">
+                    <div class="avatar-circle">{{ doctor.name|first|upper }}</div>
+                    <div>
+                        <h5 class="mb-0">Dr. {{ doctor.name }}</h5>
+                        <span class="badge badge-spec">{{ doctor.get_specialization_display }}</span>
+                    </div>
+                </div>
+                <p class="text-muted small mb-3">{{ doctor.profile|truncatewords:18 }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small"><i class="bi bi-star-fill text-warning"></i> {{ doctor.average_rating|floatformat:1 }} ({{ doctor.review_count }})</span>
+                    <a href="{% url 'doctor_profile' doctor.id %}" class="btn btn-sm btn-brand">View Profile</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No doctors listed yet. Check back soon!</p>
+        {% endfor %}
+    </div>
+</section>
+
+{% endblock %}

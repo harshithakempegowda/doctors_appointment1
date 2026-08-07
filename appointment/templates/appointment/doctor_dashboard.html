@@ -1,0 +1,66 @@
+{% extends "appointment/base.html" %}
+{% block title %}Doctor Dashboard{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="section-title mb-0">Welcome, Dr. {{ doctor.name }}</h2>
+        <a href="{% url 'edit_doctor_profile' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit Profile</a>
+    </div>
+
+    <div class="row g-3 mb-4 mt-2">
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(120deg,#0f766e,#0891b2);">
+                <div class="small opacity-75">Total</div>
+                <div class="fs-3 fw-bold">{{ stats.total }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(120deg,#f59e0b,#d97706);">
+                <div class="small opacity-75">Pending</div>
+                <div class="fs-3 fw-bold">{{ stats.pending }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(120deg,#2563eb,#1d4ed8);">
+                <div class="small opacity-75">Confirmed</div>
+                <div class="fs-3 fw-bold">{{ stats.confirmed }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(120deg,#16a34a,#15803d);">
+                <div class="small opacity-75">Completed</div>
+                <div class="fs-3 fw-bold">{{ stats.completed }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-soft p-4">
+        <h5 class="mb-3">Appointment Requests</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr><th>Patient</th><th>Date &amp; Time</th><th>Reason</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for appt in appointments %}
+                    <tr>
+                        <td>{{ appt.patient.name }} <span class="text-muted small d-block">{{ appt.patient.age }} yrs, {{ appt.patient.get_gender_display }}</span></td>
+                        <td>{{ appt.date }} at {{ appt.time }}</td>
+                        <td class="small">{{ appt.reason|truncatewords:8 }}</td>
+                        <td><span class="status-badge status-{{ appt.status }}">{{ appt.get_status_display }}</span></td>
+                        <td class="d-flex gap-2">
+                            <a href="{% url 'appointment_detail' appt.id %}" class="btn btn-sm btn-outline-secondary">View</a>
+                            <a href="{% url 'update_appointment_status' appt.id %}" class="btn btn-sm btn-brand">Update</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted text-center py-4">No appointment requests yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

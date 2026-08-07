@@ -1,0 +1,61 @@
+{% extends "appointment/base.html" %}
+{% block title %}Edit Profile{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card card-soft p-4">
+                <h4 class="mb-4">Edit Your Profile</h4>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Name</label>
+                            {{ form.name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Specialization</label>
+                            {{ form.specialization }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Qualification</label>
+                            {{ form.qualification }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Experience (years)</label>
+                            {{ form.experience_years }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Consultation Fee (₹)</label>
+                            {{ form.consultation_fee }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Available Days</label>
+                            {{ form.available_days }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Available From</label>
+                            {{ form.available_from }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Available To</label>
+                            {{ form.available_to }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Bio</label>
+                            {{ form.profile }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Photo</label>
+                            {{ form.photo }}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-brand mt-4">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

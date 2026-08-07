@@ -1,0 +1,71 @@
+{% extends "appointment/base.html" %}
+{% block title %}Dr. {{ doctor.name }}{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card card-soft p-4 mb-4">
+                <div class="d-flex gap-3 align-items-center mb-3">
+                    <div class="avatar-circle" style="width:88px;height:88px;font-size:2rem;">{{ doctor.name|first|upper }}</div>
+                    <div>
+                        <h3 class="mb-1">Dr. {{ doctor.name }}</h3>
+                        <span class="badge badge-spec">{{ doctor.get_specialization_display }}</span>
+                        {% if doctor.qualification %}<span class="text-muted small ms-2">{{ doctor.qualification }}</span>{% endif %}
+                        <div class="mt-2">
+                            <i class="bi bi-star-fill text-warning"></i> {{ doctor.average_rating|floatformat:1 }}
+                            <span class="text-muted small">({{ doctor.review_count }} reviews)</span>
+                        </div>
+                    </div>
+                </div>
+                <p>{{ doctor.profile }}</p>
+                <div class="row text-center mt-3">
+                    <div class="col-4">
+                        <div class="fw-bold">{{ doctor.experience_years }}</div>
+                        <div class="small text-muted">Years Experience</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="fw-bold">₹{{ doctor.consultation_fee }}</div>
+                        <div class="small text-muted">Consultation Fee</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="fw-bold">{{ doctor.available_from }} - {{ doctor.available_to }}</div>
+                        <div class="small text-muted">Available Hours</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-soft p-4">
+                <h5 class="mb-3">Patient Reviews</h5>
+                {% for review in reviews %}
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ review.patient.name }}</strong>
+                        <span class="text-warning">{{ review.rating }} ★</span>
+                    </div>
+                    <p class="text-muted small mb-0">{{ review.comment|default:"No comment left." }}</p>
+                </div>
+                {% empty %}
+                <p class="text-muted">No reviews yet — be the first to book and share your experience.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card card-soft p-4 text-center">
+                <i class="bi bi-calendar-check display-4 text-info mb-3"></i>
+                <h5>Book an Appointment</h5>
+                <p class="text-muted small">Available {{ doctor.available_days|default:"most weekdays" }}</p>
+                {% if user.is_authenticated and user.patient_profile %}
+                    <a href="{% url 'book_appointment' doctor.id %}" class="btn btn-brand w-100">Book Now</a>
+                {% elif user.is_authenticated %}
+                    <p class="small text-muted">Only patient accounts can book appointments.</p>
+                {% else %}
+                    <a href="{% url 'login' %}?next={% url 'book_appointment' doctor.id %}" class="btn btn-brand w-100">Login to Book</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

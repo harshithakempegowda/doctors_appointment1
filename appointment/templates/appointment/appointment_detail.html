@@ -1,0 +1,41 @@
+{% extends "appointment/base.html" %}
+{% block title %}Appointment Detail{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card card-soft p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h4 class="mb-0">Appointment Details</h4>
+                    <span class="status-badge status-{{ appointment.status }}">{{ appointment.get_status_display }}</span>
+                </div>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Doctor</dt>
+                    <dd class="col-sm-8">Dr. {{ appointment.doctor.name }} ({{ appointment.doctor.get_specialization_display }})</dd>
+
+                    <dt class="col-sm-4">Patient</dt>
+                    <dd class="col-sm-8">{{ appointment.patient.name }}</dd>
+
+                    <dt class="col-sm-4">Date &amp; Time</dt>
+                    <dd class="col-sm-8">{{ appointment.date }} at {{ appointment.time }}</dd>
+
+                    <dt class="col-sm-4">Reason</dt>
+                    <dd class="col-sm-8">{{ appointment.reason }}</dd>
+
+                    {% if appointment.doctor_notes %}
+                    <dt class="col-sm-4">Doctor's Notes</dt>
+                    <dd class="col-sm-8">{{ appointment.doctor_notes }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4">Booked On</dt>
+                    <dd class="col-sm-8">{{ appointment.created_at|date:"d M Y, h:i A" }}</dd>
+                </dl>
+
+                <a href="javascript:history.back()" class="btn btn-outline-secondary mt-3"><i class="bi bi-arrow-left"></i> Back</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

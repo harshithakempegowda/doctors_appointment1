@@ -1,0 +1,61 @@
+{% extends "appointment/base.html" %}
+{% block title %}Find a Doctor{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <h2 class="section-title">Find a Doctor</h2>
+
+    <form method="get" class="card-soft p-3 mb-4">
+        <div class="row g-2">
+            <div class="col-md-6">
+                {{ form.q }}
+            </div>
+            <div class="col-md-4">
+                {{ form.specialization }}
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-brand w-100" type="submit"><i class="bi bi-search"></i> Search</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-4">
+        {% for doctor in page_obj %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card doctor-card p-4">
+                <div class="d-flex gap-3 align-items-center mb-3">
+                    <div class="avatar-circle">{{ doctor.name|first|upper }}</div>
+                    <div>
+                        <h5 class="mb-0">Dr. {{ doctor.name }}</h5>
+                        <span class="badge badge-spec">{{ doctor.get_specialization_display }}</span>
+                    </div>
+                </div>
+                <p class="text-muted small mb-2">{{ doctor.profile|truncatewords:18 }}</p>
+                <p class="small mb-3"><i class="bi bi-briefcase"></i> {{ doctor.experience_years }} yrs experience &middot; ₹{{ doctor.consultation_fee }} fee</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small"><i class="bi bi-star-fill text-warning"></i> {{ doctor.average_rating|floatformat:1 }} ({{ doctor.review_count }})</span>
+                    <a href="{% url 'doctor_profile' doctor.id %}" class="btn btn-sm btn-brand">View Profile</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No doctors match your search.</p>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ form.q.value|default:'' }}&specialization={{ form.specialization.value|default:'' }}">Previous</a></li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ form.q.value|default:'' }}&specialization={{ form.specialization.value|default:'' }}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "appointment/base.html" %}
+{% block title %}Update Appointment{% endblock %}
+{% block content %}
+
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card card-soft p-4">
+                <h4 class="mb-1">Update Appointment</h4>
+                <p class="text-muted small mb-4">{{ appointment.patient.name }} &middot; {{ appointment.date }} at {{ appointment.time }}</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        {{ form.status }}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Notes for patient</label>
+                        {{ form.doctor_notes }}
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

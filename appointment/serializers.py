@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Doctor, Appointment, Review
+from .models import Doctor, Appointment, Review, ACTIVE_STATUSES
+from .services import slot_is_in_past
 
 
 class DoctorSerializer(serializers.ModelSerializer):
@@ -37,18 +38,31 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'date', 'time', 'reason', 'status', 'status_display',
             'doctor_notes', 'created_at',
         ]
-        read_only_fields = ['status', 'doctor_notes', 'created_at']
+        read_only_fields = ['patient', 'status', 'doctor_notes', 'created_at']
 
     def validate(self, attrs):
         doctor = attrs.get('doctor') or getattr(self.instance, 'doctor', None)
         date = attrs.get('date') or getattr(self.instance, 'date', None)
         time = attrs.get('time') or getattr(self.instance, 'time', None)
 
+        if doctor is not None and not doctor.is_active:
+            raise serializers.ValidationError("This doctor is not accepting appointments.")
+        if date and time and slot_is_in_past(date, time):
+            raise serializers.ValidationError("You can't book an appointment in the past.")
+
         clash = Appointment.objects.filter(
-            doctor=doctor, date=date, time=time, status__in=['pending', 'confirmed']
+            doctor=doctor, date=date, time=time, status__in=ACTIVE_STATUSES
         )
         if self.instance:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
             raise serializers.ValidationError("This slot is already booked with the doctor.")
         return attrs
+
+
+class AppointmentStatusSerializer(serializers.ModelSerializer):
+    """Used by doctors to confirm / complete / cancel an appointment."""
+
+    class Meta:
+        model = Appointment
+        fields = ['status', 'doctor_notes']

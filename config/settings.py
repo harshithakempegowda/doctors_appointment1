@@ -72,8 +72,24 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.environ.get('DJANGO_DB_PATH', str(BASE_DIR / 'db.sqlite3')),
+        'OPTIONS': {
+            # Wait up to 20 s for the write lock instead of failing at once,
+            # and take the write lock when a transaction starts so concurrent
+            # bookings queue up instead of failing with "database is locked".
+            # (Requires Django 5.1+.) Not needed once the project moves to PostgreSQL.
+            'timeout': 20,
+            'transaction_mode': 'IMMEDIATE',
+        },
     }
 }
+
+# ==========================================================
+# Business rules
+# ==========================================================
+
+# Patients may cancel only if the appointment starts at least this many hours
+# from now. Doctors are not restricted (e.g. emergencies).
+CANCELLATION_CUTOFF_HOURS = 2
 
 # ==========================================================
 # Password validation

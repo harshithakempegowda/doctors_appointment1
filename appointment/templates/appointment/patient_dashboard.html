@@ -50,8 +50,10 @@
                         <td><span class="status-badge status-{{ appt.status }}">{{ appt.get_status_display }}</span></td>
                         <td class="d-flex gap-2">
                             <a href="{% url 'appointment_detail' appt.id %}" class="btn btn-sm btn-outline-secondary">View</a>
-                            {% if appt.status == 'pending' or appt.status == 'confirmed' %}
+                            {% if appt.patient_can_cancel %}
                             <a href="{% url 'cancel_appointment' appt.id %}" class="btn btn-sm btn-outline-danger">Cancel</a>
+                            {% elif appt.status == 'pending' or appt.status == 'confirmed' %}
+                            <span class="small text-muted align-self-center" title="Patients can cancel up to 2 hours before the start time">Cancellation closed</span>
                             {% elif appt.status == 'completed' and not appt.review %}
                             <a href="{% url 'leave_review' appt.id %}" class="btn btn-sm btn-outline-warning">Review</a>
                             {% endif %}

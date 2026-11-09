@@ -4,10 +4,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.core.paginator import Paginator
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.conf import settings
 
 from .models import Doctor, Patient, Appointment, Review
+from . import services
 from .forms import (
     PatientSignUpForm, DoctorSignUpForm, DoctorProfileForm,
     AppointmentBookingForm, AppointmentStatusForm, ReviewForm, DoctorSearchForm,
@@ -159,19 +161,25 @@ def book_appointment(request, doctor_id):
     if request.method == 'POST':
         form = AppointmentBookingForm(request.POST, doctor=doctor)
         if form.is_valid():
-            appointment = form.save(commit=False)
-            appointment.doctor = doctor
-            appointment.patient = request.user.patient_profile
-            appointment.save()
-
-            _notify(
-                "New appointment request",
-                f"{appointment.patient.name} requested an appointment on "
-                f"{appointment.date} at {appointment.time}.",
-                doctor.user.email,
-            )
-            messages.success(request, "Appointment requested! You'll be notified once the doctor confirms it.")
-            return redirect('patient_dashboard')
+            try:
+                appointment = services.book_slot(
+                    doctor=doctor,
+                    patient=request.user.patient_profile,
+                    date=form.cleaned_data['date'],
+                    time=form.cleaned_data['time'],
+                    reason=form.cleaned_data['reason'],
+                )
+            except services.SlotUnavailable as exc:
+                form.add_error(None, str(exc))
+            else:
+                _notify(
+                    "New appointment request",
+                    f"{appointment.patient.name} requested an appointment on "
+                    f"{appointment.date} at {appointment.time}.",
+                    doctor.user.email,
+                )
+                messages.success(request, "Appointment requested! You'll be notified once the doctor confirms it.")
+                return redirect('patient_dashboard')
     else:
         form = AppointmentBookingForm(doctor=doctor)
 
@@ -191,11 +199,17 @@ def cancel_appointment(request, appointment_id):
         messages.error(request, "You don't have permission to cancel this appointment.")
         return redirect('home')
 
-    if request.method == 'POST':
-        appointment.status = 'cancelled'
-        appointment.save()
-        messages.info(request, "Appointment cancelled.")
-        return redirect('patient_dashboard' if is_owner_patient else 'doctor_dashboard')
+    back = 'patient_dashboard' if is_owner_patient else 'doctor_dashboard'
+    try:
+        # Patients are blocked inside the cutoff window; doctors are not.
+        services.check_cancellable(appointment, by_patient=is_owner_patient)
+        if request.method == 'POST':
+            services.cancel_appointment(appointment, by_patient=is_owner_patient)
+            messages.info(request, "Appointment cancelled.")
+            return redirect(back)
+    except services.CancellationNotAllowed as exc:
+        messages.error(request, str(exc))
+        return redirect(back)
 
     return render(request, 'appointment/confirm_cancel.html', {'appointment': appointment})
 
@@ -273,15 +287,21 @@ def update_appointment_status(request, appointment_id):
     if request.method == 'POST':
         form = AppointmentStatusForm(request.POST, instance=appointment)
         if form.is_valid():
-            form.save()
-            _notify(
-                f"Your appointment is now {appointment.get_status_display()}",
-                f"Dr. {appointment.doctor.name} updated your appointment on "
-                f"{appointment.date} at {appointment.time} to '{appointment.get_status_display()}'.",
-                appointment.patient.user.email,
-            )
-            messages.success(request, "Appointment updated.")
-            return redirect('doctor_dashboard')
+            try:
+                with transaction.atomic():
+                    form.save()
+            except IntegrityError:
+                # e.g. re-activating a cancelled appointment whose slot was rebooked
+                form.add_error('status', "Another active appointment already holds this slot.")
+            else:
+                _notify(
+                    f"Your appointment is now {appointment.get_status_display()}",
+                    f"Dr. {appointment.doctor.name} updated your appointment on "
+                    f"{appointment.date} at {appointment.time} to '{appointment.get_status_display()}'.",
+                    appointment.patient.user.email,
+                )
+                messages.success(request, "Appointment updated.")
+                return redirect('doctor_dashboard')
     else:
         form = AppointmentStatusForm(instance=appointment)
 

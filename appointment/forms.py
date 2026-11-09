@@ -2,7 +2,8 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import Doctor, Patient, Appointment, Review, SPECIALIZATIONS
+from .models import Doctor, Patient, Appointment, Review, SPECIALIZATIONS, ACTIVE_STATUSES
+from .services import slot_is_in_past
 
 
 TEXT_INPUT = {'class': 'form-control'}
@@ -108,14 +109,15 @@ class AppointmentBookingForm(forms.ModelForm):
         date = cleaned.get('date')
         time = cleaned.get('time')
 
-        from django.utils import timezone
-        if date and date < timezone.localdate():
+        if date and time and slot_is_in_past(date, time):
             raise forms.ValidationError("You can't book an appointment in the past.")
 
+        # Friendly early check. The real protection against simultaneous requests
+        # is the database constraint + atomic booking in services.book_slot().
         if self.doctor and date and time:
             clash = Appointment.objects.filter(
                 doctor=self.doctor, date=date, time=time,
-                status__in=['pending', 'confirmed']
+                status__in=ACTIVE_STATUSES,
             )
             if self.instance.pk:
                 clash = clash.exclude(pk=self.instance.pk)

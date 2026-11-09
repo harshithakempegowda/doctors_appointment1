@@ -1,8 +1,21 @@
-from rest_framework import viewsets, permissions, filters
-from rest_framework.exceptions import PermissionDenied
+from django.db import IntegrityError, transaction
+from rest_framework import viewsets, permissions, filters, mixins, status
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, APIException
+from rest_framework.response import Response
 
+from . import services
 from .models import Doctor, Appointment, Review
-from .serializers import DoctorSerializer, AppointmentSerializer, ReviewSerializer
+from .serializers import (
+    DoctorSerializer, AppointmentSerializer, AppointmentStatusSerializer, ReviewSerializer,
+)
+
+
+class SlotConflict(APIException):
+    """HTTP 409 — the slot was taken by a competing request."""
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "This slot is already booked with the doctor."
+    default_code = "slot_unavailable"
 
 
 class DoctorViewSet(viewsets.ReadOnlyModelViewSet):
@@ -22,12 +35,21 @@ class ReviewViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
 
-class AppointmentViewSet(viewsets.ModelViewSet):
+class AppointmentViewSet(mixins.CreateModelMixin,
+                         mixins.ListModelMixin,
+                         mixins.RetrieveModelMixin,
+                         viewsets.GenericViewSet):
     """
     Authenticated endpoint — /api/appointments/
-    Patients see & create only their own appointments.
-    Doctors see only appointments booked with them (read-only here;
-    status changes go through the web dashboard).
+
+    * Patients list/retrieve/create only their own appointments.
+    * Doctors list/retrieve only appointments booked with them.
+    * POST /api/appointments/                 book a slot (patients only)
+    * POST /api/appointments/<id>/cancel/     cancel (patients: >= 2 h before start)
+    * PATCH /api/appointments/<id>/status/    update status / notes (doctors only)
+
+    Double bookings are rejected with HTTP 409 (or 400 when the clash is caught
+    by validation first).
     """
     serializer_class = AppointmentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -40,8 +62,45 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             return Appointment.objects.filter(doctor=user.doctor_profile)
         return Appointment.objects.none()
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        if not hasattr(user, 'patient_profile'):
+    def create(self, request, *args, **kwargs):
+        if not hasattr(request.user, 'patient_profile'):
             raise PermissionDenied("Only patients can book appointments.")
-        serializer.save(patient=user.patient_profile)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            appointment = services.book_slot(
+                doctor=data['doctor'],
+                patient=request.user.patient_profile,
+                date=data['date'],
+                time=data['time'],
+                reason=data['reason'],
+            )
+        except services.SlotUnavailable as exc:
+            raise SlotConflict(str(exc))
+        return Response(self.get_serializer(appointment).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        appointment = self.get_object()
+        by_patient = hasattr(request.user, 'patient_profile')
+        try:
+            services.cancel_appointment(appointment, by_patient=by_patient)
+        except services.CancellationNotAllowed as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(appointment).data)
+
+    @action(detail=True, methods=['patch'], url_path='status')
+    def set_status(self, request, pk=None):
+        if not hasattr(request.user, 'doctor_profile'):
+            raise PermissionDenied("Only doctors can update appointment status.")
+        appointment = self.get_object()
+        serializer = AppointmentStatusSerializer(appointment, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            raise SlotConflict("Another active appointment already holds this slot.")
+        return Response(self.get_serializer(appointment).data)

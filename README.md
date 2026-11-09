@@ -1,128 +1,152 @@
-<<<<<<< HEAD
 # MediCare — Doctor Appointment Booking System
 
-A full-stack appointment booking platform built with **Django**, **Django REST Framework**, and **Bootstrap 5**. Patients can search for doctors, book appointments, and leave reviews; doctors can manage their profile and respond to appointment requests. A read-only REST API is also exposed for doctors, appointments, and reviews.
+A full-stack appointment booking platform built with **Django**, **Django REST Framework** and **Bootstrap 5**.
+Patients search for doctors, book appointments and leave reviews; doctors manage their profile and
+respond to appointment requests. A REST API exposes doctors, reviews and appointments.
 
-## ✨ Features
+> Academic project (Oct 2024 – Feb 2025). Runs locally; see [Limitations](#limitations).
 
-- **Role-based accounts** — separate signup flows and dashboards for Patients and Doctors
-- **Doctor discovery** — search by name/keyword and filter by specialization, with pagination
-- **Appointment booking** with server-side validation that prevents double-booking the same doctor slot
-- **Appointment lifecycle** — Pending → Confirmed → Completed → Cancelled, managed from the doctor's dashboard
-- **Reviews & ratings** — patients can rate a doctor after a completed visit; average rating shown on the doctor's profile
-- **Email notifications** (console backend in dev) sent to the doctor on new bookings and to the patient on status changes
-- **Doctor profile management** — bio, qualifications, fees, availability, and photo upload
-- **REST API** (Django REST Framework) — `/api/doctors/`, `/api/appointments/`, `/api/reviews/` with search, ordering, and pagination
-- **Django Admin** for full CRUD over all models
-- **Seed command** (`seed_demo`) to populate demo doctors, patients, and appointments in one shot
+## Team and my role
 
-## 🧱 Tech Stack
+<!-- TODO: fill in with your real details before sharing this repo -->
+- Team size: **3**
+- My role: **Backend & DevOps** — booking logic, REST API, tests, Docker setup
+- Teammates: frontend UI and patient profile views
 
-- Backend: Python, Django, Django REST Framework
-- Database: SQLite (swap `DATABASES` in `config/settings.py` for Postgres/MySQL in production)
-- Frontend: Django Templates, Bootstrap 5, Bootstrap Icons
-- Auth: Django's built-in auth system, extended with `Doctor`/`Patient` profile models
+## Features
 
-## 🗂 Project Structure
+- **Role-based accounts** — separate signup flows and dashboards for patients and doctors
+- **Doctor discovery** — search by name/keyword, filter by specialization, pagination
+- **Double-booking protection** — database constraint + atomic booking (see below)
+- **2-hour cancellation cutoff** — patients can cancel only until 2 hours before the start time; doctors can always cancel
+- **Appointment lifecycle** — Pending → Confirmed → Completed → Cancelled
+- **Reviews & ratings** after a completed visit
+- **Email notifications** (console backend in development)
+- **REST API** — doctors, reviews, appointments (book / cancel / update status)
+- **Django Admin**, demo-data seed command, Docker setup
 
-```
-medicare/
-├── config/                # Project settings, root urls
-├── appointment/
-│   ├── models.py          # Doctor, Patient, Appointment, Review
-│   ├── forms.py            # Signup, booking, review, search forms
-│   ├── views.py             # All page views
-│   ├── api.py               # DRF viewsets
-│   ├── serializers.py       # DRF serializers
-│   ├── admin.py
-│   ├── templates/
-│   ├── static/
-│   └── management/commands/seed_demo.py
-├── requirements.txt
-└── manage.py
-```
+## How double bookings are prevented
 
-## 🚀 Getting Started
+Two patients can press "Book" for the same slot at the same moment, so a form check alone is not enough
+(both requests can pass it before either saves). Protection is layered:
+
+1. **Database constraint** — `UniqueConstraint(doctor, date, time)` that applies to *active* (pending/confirmed)
+   appointments only, so a cancelled slot can be rebooked (`appointment/models.py`).
+2. **Atomic booking service** — `services.book_slot()` runs the check and insert inside `transaction.atomic()` and turns the
+   database's `IntegrityError` into a clear `SlotUnavailable` message instead of a server error (`appointment/services.py`).
+3. **SQLite write locking** — `transaction_mode: IMMEDIATE` and a 20 s timeout (`config/settings.py`) so simultaneous writers queue
+   instead of failing with "database is locked".
+
+The web form and the REST API share the same service, so both paths behave identically.
+
+## Tech stack
+
+Python 3.12, Django 5.1+, Django REST Framework, SQLite, Bootstrap 5, Docker / Docker Compose, gunicorn.
+
+## Getting started (local)
 
 ```bash
-# 1. Clone and enter the project
-cd medicare
-
-# 2. Create a virtual environment
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-
-# 3. Install dependencies
+source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# 4. Apply migrations
 python manage.py migrate
-
-# 5. (Optional) Load demo data — doctors, patients, sample appointments
-python manage.py seed_demo
-
-# 6. Run the dev server
+python manage.py seed_demo        # optional demo data
 python manage.py runserver
 ```
 
-Visit **http://127.0.0.1:8000/**.
+Open http://127.0.0.1:8000/
 
-### Demo credentials (after running `seed_demo`)
+### Demo credentials (after `seed_demo`)
 
-| Role    | Username example  | Password       |
-|---------|--------------------|-----------------|
-| Admin   | `admin`             | `admin12345`    |
-| Doctor  | `ananya.rao`        | `doctor12345`   |
-| Patient | `meera.shah`        | `patient12345`  |
+| Role    | Username       | Password       |
+|---------|----------------|----------------|
+| Admin   | `admin`        | `admin12345`   |
+| Doctor  | `ananya.rao`   | `doctor12345`  |
+| Patient | `meera.shah`   | `patient12345` |
 
-(All seeded doctor usernames are `firstname.lastname`, e.g. `rohan.mehta`, `priya.nair`.)
-
-## 🔌 API Endpoints
-
-| Endpoint                | Method | Description                              |
-|--------------------------|--------|-------------------------------------------|
-| `/api/doctors/`           | GET    | List/search doctors (`?search=`, `?ordering=`) |
-| `/api/doctors/<id>/`      | GET    | Doctor detail                             |
-| `/api/appointments/`      | GET/POST | List or create appointments (auth required, scoped to the logged-in user) |
-| `/api/reviews/`           | GET    | List reviews                              |
-
-## 🩺 Possible Next Steps
-
-- Time-slot based availability instead of free-text date/time
-- Payment integration for consultation fees
-- Real email/SMS notifications via a provider (e.g. SendGrid, Twilio)
-- Video-consultation link generation for telemedicine appointments
-- Unit tests for booking-conflict logic and role-based permissions
-
-## 🐳 Running with Docker
+## Running with Docker
 
 ```bash
-# Build and start the container (serves on http://localhost:8000)
-docker compose up --build
-
-# Run in the background
-docker compose up --build -d
-
-# Create a superuser inside the running container
-docker compose exec web python manage.py createsuperuser
-
-# Load demo data inside the running container
+docker compose up --build            # serves on http://localhost:8000
+docker compose up --build -d         # in the background
 docker compose exec web python manage.py seed_demo
+docker compose exec web python manage.py createsuperuser
 ```
 
-The container runs migrations and `collectstatic` automatically on startup
-(see `docker-entrypoint.sh`). The SQLite database, uploaded media, and
-collected static files are persisted in named Docker volumes
-(`sqlite_data`, `media_data`, `static_data`) so they survive container
-restarts. To seed demo data automatically on first boot instead, set
-`SEED_DEMO: "True"` under `environment:` in `docker-compose.yml`.
+Migrations and `collectstatic` run automatically on start (`docker-entrypoint.sh`). The SQLite database, media files
+and static files live in named volumes (`sqlite_data`, `media_data`, `static_data`) and survive restarts.
+Set a real `DJANGO_SECRET_KEY` before deploying anywhere other than your own machine.
 
-Set a real `DJANGO_SECRET_KEY` and keep `DJANGO_DEBUG` set to `"False"`
-before deploying anywhere besides your own machine.
+## Tests
 
-## 📄 License
+### Unit and API tests
 
-Built as a personal/academic portfolio project. Free to reuse and adapt.
-=======
-# doctors_appointment
->>>>>>> 8db07c58eb811bc43ce47a5082fe0223f50cd3d6
+```bash
+python manage.py test
+```
+
+28 tests cover: the slot constraint, the booking service (including losing a race), the cancellation rule
+(well before, exactly at, and inside the 2-hour window), role-based permissions in the web views and the API,
+and a threaded test where 8 simultaneous bookings for one slot must produce exactly one winner.
+
+### Live concurrency test (30 simultaneous API requests)
+
+Start the app with a multi-worker server, then fire 30 simultaneous booking requests for the same slot:
+
+```bash
+# terminal 1 — gunicorn, like the Docker image uses
+gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 3
+
+# terminal 2
+python manage.py concurrency_test --requests 30 --base-url http://127.0.0.1:8000
+```
+
+With Docker:
+
+```bash
+docker compose up -d
+docker compose exec web python manage.py concurrency_test --base-url http://localhost:8000
+```
+
+The command logs in 30 test patients, releases all requests together, prints the HTTP status codes
+(`201` created, `400`/`409` rejected) and then checks the database for duplicate bookings.
+Expected result: **exactly 1 booking, 0 duplicates**. Use gunicorn rather than `runserver` for this test —
+Django's development server only queues 5 pending connections, so some of the 30 simultaneous connections can be reset
+by the server before they reach the app (this does not affect the database result).
+
+## API
+
+| Endpoint                                | Method | Description                                               |
+|-----------------------------------------|--------|-----------------------------------------------------------|
+| `/api/doctors/`, `/api/doctors/<id>/`   | GET    | List / search doctors (`?search=`, `?ordering=`)          |
+| `/api/reviews/`                         | GET    | List reviews                                              |
+| `/api/appointments/`                    | GET    | Your appointments (patients: own; doctors: booked with them) |
+| `/api/appointments/`                    | POST   | Book a slot (patients only). `409`/`400` if already booked |
+| `/api/appointments/<id>/cancel/`        | POST   | Cancel (patients: at least 2 h before start)              |
+| `/api/appointments/<id>/status/`        | PATCH  | Update status / notes (doctors only)                      |
+
+## Project structure
+
+```
+config/                     settings, root urls
+appointment/
+├── models.py               Doctor, Patient, Appointment (+ slot constraint), Review
+├── services.py             book_slot(), cancel_appointment() — shared business rules
+├── views.py, forms.py      web UI
+├── api.py, serializers.py  REST API
+├── tests.py                unit, API and concurrency tests
+└── management/commands/    seed_demo.py, concurrency_test.py
+Dockerfile, docker-compose.yml, docker-entrypoint.sh
+```
+
+## Limitations
+
+- **SQLite** uses file-level locking, so sustained heavy write traffic will slow down or fail. For production, switch
+  `DATABASES` to **PostgreSQL**, which handles concurrent writes with row-level locking; the unique constraint and
+  `transaction.atomic()` logic work unchanged.
+- Availability is a free date/time field, not a generated list of time slots.
+- Emails use the console backend; payments and video consultations are not implemented.
+
+## License
+
+Personal/academic portfolio project. Free to reuse and adapt.

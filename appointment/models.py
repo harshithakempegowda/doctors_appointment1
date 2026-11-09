@@ -1,5 +1,9 @@
+import datetime
+
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Avg
 
@@ -78,6 +82,9 @@ class Patient(models.Model):
         return self.name
 
 
+ACTIVE_STATUSES = ('pending', 'confirmed')
+
+
 class Appointment(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -112,8 +119,23 @@ class Appointment(models.Model):
 
     @property
     def is_upcoming(self):
-        from django.utils import timezone
-        return self.date >= timezone.localdate() and self.status in ('pending', 'confirmed')
+        return self.date >= timezone.localdate() and self.status in ACTIVE_STATUSES
+
+    @property
+    def starts_at(self):
+        """Appointment start as a timezone-aware datetime."""
+        naive = datetime.datetime.combine(self.date, self.time)
+        return timezone.make_aware(naive, timezone.get_current_timezone())
+
+    @property
+    def cancellation_deadline(self):
+        """Last moment a patient may still cancel."""
+        hours = getattr(settings, 'CANCELLATION_CUTOFF_HOURS', 2)
+        return self.starts_at - datetime.timedelta(hours=hours)
+
+    @property
+    def patient_can_cancel(self):
+        return self.status in ACTIVE_STATUSES and timezone.now() <= self.cancellation_deadline
 
 
 class Review(models.Model):
